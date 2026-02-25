@@ -15,6 +15,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const qrcode = require('qrcode');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const cors = require('cors');
 require('dotenv').config();
 
@@ -95,11 +96,16 @@ const loginLimiter = rateLimit({
 });
 
 app.use(session({
+    store: new SQLiteStore({
+        db: 'wagarda.db',
+        dir: './',
+        table: 'sessions'
+    }),
     secret: process.env.SESSION_SECRET || 'wagarda-secret-session',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // Extend to 7 days
         httpOnly: true,
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production'
