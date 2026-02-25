@@ -238,13 +238,13 @@
         // ================= DEVICE LIST MANAGEMENT =================
         async function fetchDeviceList() {
             try {
-                // To fetch device list we don't need API Key in UI, assuming UI has its own session
                 const res = await fetch('/wagateway/devices');
                 if (res.status === 401 || res.status === 403) {
                     alert("Unauthorized. Make sure you are logged in.");
                     return;
                 }
-                const devices = await res.json();
+                const json = await res.json();
+                const devices = json.data || [];
 
                 deviceTableBody.innerHTML = ''; // Clear table
 
@@ -259,10 +259,10 @@
                     const tr = document.createElement('tr');
 
                     const tdId = document.createElement('td');
-                    tdId.textContent = device.device;
+                    tdId.textContent = device.device_id;
 
                     const tdStatus = document.createElement('td');
-                    const statusClass = device.status === 'CONNECTED' ? 'status-connected' : 'status-disconnected';
+                    const statusClass = device.status === 'connected' ? 'status-connected' : 'status-disconnected';
                     tdStatus.innerHTML = `<span class="${statusClass}">${device.status}</span>`;
 
                     const tdPhone = document.createElement('td');
@@ -272,7 +272,7 @@
                     const btnDelete = document.createElement('button');
                     btnDelete.textContent = 'Delete & Logout';
                     btnDelete.className = 'delete-btn';
-                    btnDelete.onclick = () => deleteDevice(device.device);
+                    btnDelete.onclick = () => deleteDevice(device.device_id);
 
                     tdAction.appendChild(btnDelete);
 
