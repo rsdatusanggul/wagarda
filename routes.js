@@ -6,10 +6,15 @@ const { body } = require('express-validator')
 const fs = require('fs');
 
 const authenticate = async (req, res, next) => {
+    // Allow access if logged in via Web UI (Admin Session override)
+    if (req.session && req.session.user) {
+        return next();
+    }
+
     const apiKey = req.headers['x-api-key'] || req.query.api_key;
 
     if (!apiKey) {
-        return res.status(401).json({ status: false, msg: 'API Key is missing' });
+        return res.status(401).json({ status: false, msg: 'API Key is missing or unauthorized' });
     }
 
     try {
