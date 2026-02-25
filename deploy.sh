@@ -6,7 +6,8 @@ cd "$(dirname "$0")"
 echo "🚀 Memulai proses build dan restart WAGARDA..."
 echo "------------------------------------------------"
 
-# Jalankan build ulang image dan recreate container di background
+# Bersihkan layanan terdahulu dan jalankan build ulang image serta recreate container di background
+docker compose down
 docker compose up -d --build
 
 echo "------------------------------------------------"
