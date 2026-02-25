@@ -1,3 +1,5 @@
-node_modules/*
+node_modules/
 package-lock.json
-wagw.dbsessions/12mini/
+sessions/
+*.db
+.env

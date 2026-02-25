@@ -45,22 +45,44 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 
 // Strict CORS Policy for API Routes
-const corsOptions = {
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
-        if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+const corsOptionsDelegate = (req, callback) => {
+    let corsOptions = {
+        methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+        credentials: true
+    };
+
+    const origin = req.header('Origin');
+    if (!origin) {
+        corsOptions.origin = false;
+        return callback(null, corsOptions);
+    }
+
+    const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+    let isAllowed = false;
+
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+        isAllowed = true;
+    } else {
+        try {
+            // Allow same origin requests when running behind a tunnel/proxy
+            const host = req.get('x-forwarded-host') || req.get('host');
+            if (host && new URL(origin).host === host) {
+                isAllowed = true;
+            }
+        } catch (e) { }
+    }
+
+    if (isAllowed) {
+        corsOptions.origin = true;
+        callback(null, corsOptions);
+    } else {
+        // Return an error which will be caught by the global error handler
+        callback(new Error('Not allowed by CORS'));
+    }
 };
 
-app.use('/wagateway', cors(corsOptions));
+app.use('/wagateway', cors(corsOptionsDelegate));
 
 // Trust proxy for rate limiting behind Nginx/Cloudflare
 app.set('trust proxy', 1);
@@ -195,6 +217,18 @@ io.on('connection', (socket) => {
         return
     })
 })
+
+// Global Error Handler to ensure API routes always return JSON instead of HTML
+app.use((err, req, res, next) => {
+    if (err.message === 'Not allowed by CORS') {
+        return res.status(403).json({ status: false, msg: 'Not allowed by CORS' });
+    }
+
+    console.error('Unhandled Error:', err);
+    if (!res.headersSent) {
+        res.status(500).json({ status: false, msg: 'Internal Server Error' });
+    }
+});
 
 const PORT = process.env.PORT || 10000;
 
