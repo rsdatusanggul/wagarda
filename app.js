@@ -125,14 +125,14 @@ app.post('/login', loginLimiter, async (req, res) => {
             req.session.csrfToken = require('crypto').randomBytes(32).toString('hex');
             res.redirect('/');
         } else {
-            res.send('Invalid username or password. <a href="/login">Try again</a>');
+            res.redirect('/login?error=1');
         }
     } catch (error) {
         console.error(error);
-        if (error.message.includes('Account locked')) {
-            res.status(429).send(`${error.message} <a href="/login">Go back</a>`);
+        if (error.message && error.message.includes('Account locked')) {
+            res.redirect('/login?error=locked');
         } else {
-            res.status(500).send('Internal Server Error');
+            res.redirect('/login?error=1');
         }
     }
 });

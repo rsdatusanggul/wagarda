@@ -10,8 +10,9 @@
             --primary-color: #25d366;
             --secondary-color: #075e54;
             --background-color: #f0f2f5;
-            --text-color: #333;
         }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -20,14 +21,13 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
-            margin: 0;
         }
 
         .login-card {
             background: white;
             padding: 2.5rem;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
             width: 100%;
             max-width: 400px;
             text-align: center;
@@ -35,55 +35,90 @@
 
         .login-card h1 {
             color: var(--secondary-color);
-            margin-bottom: 1.5rem;
+            font-size: 2rem;
+            margin-bottom: 0.3rem;
         }
 
-        .login-card p {
-            color: #666;
-            margin-bottom: 2rem;
+        .login-card .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 1.8rem;
+        }
+
+        /* Error/warning banners */
+        .alert {
+            display: none;
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.2rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-align: left;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .alert-danger {
+            background-color: #fdecea;
+            border: 1px solid #f5c2c7;
+            color: #842029;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffda6a;
+            color: #664d03;
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.2rem;
             text-align: left;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.4rem;
             font-weight: 600;
+            font-size: 0.875rem;
+            color: #444;
         }
 
         .form-group input {
             width: 100%;
-            padding: 0.8rem;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
+            padding: 0.75rem 1rem;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
             font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.15);
         }
 
         .btn-login {
             background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 1rem 2rem;
-            border-radius: 6px;
+            padding: 0.9rem;
+            border-radius: 8px;
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             width: 100%;
-            transition: background 0.3s;
+            margin-top: 0.5rem;
+            transition: background 0.3s, transform 0.1s;
         }
 
-        .btn-login:hover {
-            background-color: #1ebe57;
-        }
+        .btn-login:hover { background-color: #1db954; }
+        .btn-login:active { transform: scale(0.98); }
 
         .footer {
-            margin-top: 2rem;
-            font-size: 0.8rem;
-            color: #999;
+            margin-top: 1.8rem;
+            font-size: 0.75rem;
+            color: #bbb;
         }
     </style>
 </head>
@@ -91,22 +126,41 @@
 <body>
     <div class="login-card">
         <h1>WAGARDA</h1>
-        <p>WhatsApp Gateway Multi-Device</p>
+        <p class="subtitle">WhatsApp Gateway Multi-Device</p>
+
+        <div id="alert-invalid" class="alert alert-danger">
+            ❌ Username atau Password salah. Silakan coba lagi.
+        </div>
+        <div id="alert-locked" class="alert alert-warning">
+            🔒 Akun dikunci sementara. Terlalu banyak percobaan login gagal. Coba lagi dalam 30 menit.
+        </div>
+
         <form action="/login" method="POST">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autocomplete="username">
+                <input type="text" id="username" name="username" required autocomplete="username" placeholder="Masukkan username">
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="Masukkan password">
             </div>
             <button type="submit" class="btn-login">Login</button>
         </form>
+
         <div class="footer">
-            &copy; 2026 WAGARDA Powered by ITD RSUD Datu Sanggul, Thanks to drg. Basoro for the code
+            &copy; 2026 WAGARDA &mdash; Powered by ITD RSUD Datu Sanggul
         </div>
     </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const error = params.get('error');
+        if (error === '1') {
+            document.getElementById('alert-invalid').style.display = 'block';
+        } else if (error === 'locked') {
+            document.getElementById('alert-locked').style.display = 'block';
+        }
+    </script>
 </body>
 
 </html>
