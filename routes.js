@@ -280,38 +280,47 @@ module.exports = function (router) {
         body('device_id', 'Wrong Parameters!').notEmpty(),
     ], async (req, res) => {
         const { device_id } = req.body;
+        await cleanupDevice(device_id, sessions, fs, res);
+    });
 
-        // Check if device exists in memory
-        const conn = sessions.get(device_id);
-
-        if (conn) {
-            try {
-                // Logout from WA
-                if (conn.user) { // Only logout if connected
-                    await conn.logout();
-                } else {
-                    conn.end(undefined); // Close connection if not logged in
-                }
-                sessions.delete(device_id);
-            } catch (error) {
-                console.log('Error logout device', error)
-            }
-        }
-
-        // Delete session folder in ./sessions/
-        const sessionDir = `./sessions/${device_id}`;
-        if (fs.existsSync(sessionDir)) {
-            fs.rmSync(sessionDir, { recursive: true, force: true });
-            res.json({ status: true, msg: `Device ${device_id} deleted successfully` });
-        } else {
-            // Check if it was just in memory but no file (edge case)
-            if (conn) {
-                res.json({ status: true, msg: `Device ${device_id} deleted from memory` });
-            } else {
-                res.status(404).json({ status: false, msg: `Device ${device_id} not found` });
-            }
-        }
-
+    // REST-style DELETE endpoint used by the dashboard UI
+    router.delete('/wagateway/device/:device_id', async (req, res) => {
+        const { device_id } = req.params;
+        await cleanupDevice(device_id, sessions, fs, res);
     });
 
 }
+
+// Shared cleanup logic for deleting/logging out a device
+async function cleanupDevice(device_id, sessions, fs, res) {
+    const conn = sessions.get(device_id);
+
+    if (conn) {
+        try {
+            if (conn.user) {
+                await conn.logout();
+            } else {
+                conn.end(undefined);
+            }
+        } catch (error) {
+            console.log('Error during logout, will still delete session files:', error.message);
+        }
+        sessions.delete(device_id);
+    }
+
+    // Always attempt to remove the session folder regardless of socket state
+    const sessionDir = `./sessions/${device_id}`;
+    if (fs.existsSync(sessionDir)) {
+        try {
+            fs.rmSync(sessionDir, { recursive: true, force: true });
+            return res.json({ status: true, msg: `Device ${device_id} deleted successfully` });
+        } catch (err) {
+            return res.status(500).json({ status: false, msg: `Failed to delete session: ${err.message}` });
+        }
+    } else if (conn) {
+        return res.json({ status: true, msg: `Device ${device_id} removed from memory` });
+    } else {
+        return res.status(404).json({ status: false, msg: `Device ${device_id} not found` });
+    }
+}
+
