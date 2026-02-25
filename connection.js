@@ -51,11 +51,11 @@ const startCon = async (device, socket = undefined, logout = undefined) => {
                     if (socket) socket.emit("message", "logout device " + device);
                 }
             }
-            if (socket) socket.emit('Proccess')
+            if (socket) socket.emit('connection-status', { device: device, status: 'close' });
 
         } else if (connection === 'open') {
 
-            socket !== undefined ? socket.emit('Authenticated', sock.user) : ''
+            if (socket !== undefined) socket.emit('connection-status', { device: device, status: 'open', user: sock.user });
             if (logout) {
                 sock.logout().then(() => {
                     sessions.delete(device);
@@ -71,7 +71,7 @@ const startCon = async (device, socket = undefined, logout = undefined) => {
         if (qr) {
             qrcode.toDataURL(qr, (err, url) => {
                 if (err) console.log(err);
-                socket !== undefined ? socket.emit('QrGenerated', url) : ''
+                if (socket !== undefined) socket.emit('qr', { device: device, qr: url });
             })
         }
     })
