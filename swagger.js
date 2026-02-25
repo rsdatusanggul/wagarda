@@ -9,7 +9,7 @@ const options = {
       version: '1.0.0',
       description: 'API Documentation for WhatsApp Gateway Multi-Device',
       contact: {
-        name: 'WAGW Support',
+        name: 'WAGARDA Support',
       },
     },
     servers: [

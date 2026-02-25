@@ -1,12 +1,12 @@
 services:
-  wagw:
+  wagarda:
     build: .
-    container_name: wagw-app
+    container_name: wagarda-app
     ports:
       - "10000:10000" # Untuk akses lokal langsung
     volumes:
       - ./sessions:/usr/src/app/sessions
-      - ./wagw.db:/usr/src/app/wagw.db
+      - ./wagarda.db:/usr/src/app/wagarda.db
       - ./.env:/usr/src/app/.env
     restart: unless-stopped
     environment:
@@ -14,18 +14,18 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: wagw-nginx
+    container_name: wagarda-nginx
     ports:
       - "8180:80" # Untuk akses lokal via Nginx
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - wagw
+      - wagarda
     restart: unless-stopped
 
   cloudflare-tunnel:
     image: cloudflare/cloudflared:latest
-    container_name: wagw-tunnel
+    container_name: wagarda-tunnel
     command: tunnel --no-autoupdate --url http://nginx:80
     depends_on:
       - nginx

@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
-const dbPath = path.resolve(__dirname, 'wagw.db');
+const dbPath = path.resolve(__dirname, 'wagarda.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {

@@ -73,7 +73,7 @@ const loginLimiter = rateLimit({
 });
 
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'wagw-secret-session',
+    secret: process.env.SESSION_SECRET || 'wagarda-secret-session',
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -150,7 +150,7 @@ app.get('/api/keys', requireAuth, async (req, res) => {
 app.post('/api/keys', requireAuth, async (req, res) => {
     try {
         const crypto = require('crypto');
-        const newKey = 'wagw-' + crypto.randomBytes(16).toString('hex');
+        const newKey = 'wagarda-' + crypto.randomBytes(16).toString('hex');
         const desc = req.body.description || 'Generated Key via UI';
         createApiKey(newKey, desc);
         res.json({ success: true, key: newKey });

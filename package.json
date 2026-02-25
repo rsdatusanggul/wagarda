@@ -1,7 +1,7 @@
 {
-  "name": "mLITEWAGW",
+  "name": "wagarda",
   "version": "1.0 Beta",
-  "description": "mLITE WA Gateway Multi device",
+  "description": "WhatsApp Gateway Multi device (WAGARDA)",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
@@ -9,9 +9,9 @@
   "keywords": [
     "mLITE",
     "WA",
-    "WAMD"
+    "WAGARDA"
   ],
-  "author": "Basoro",
+  "author": "ITD RSUD Datu Sanggul",
   "license": "ISC",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.3.0",
