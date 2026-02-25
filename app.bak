@@ -1,0 +1,105 @@
+
+const { startCon, init } = require('./connection')
+const http = require('http');
+const express = require('express');
+const app = express();
+const server = http.createServer(app);
+const router = express.Router();
+const { Server } = require('socket.io');
+const io = new Server(server);
+const fs = require('fs');
+const marked = require('marked');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
+const session = require('express-session');
+const { authenticateUser } = require('./database');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+require('dotenv').config();
+
+// Apply Helmet for basic security headers
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "blob:"],
+            connectSrc: ["'self'", "ws:", "wss:"],
+            upgradeInsecureRequests: [],
+        },
+    },
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 1000000 }))
+
+// Trust proxy for rate limiting behind Nginx/Cloudflare
+app.set('trust proxy', 1);
+
+// Global Rate Limiter
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 200, // Limit each IP to 200 requests per windowMs
+    message: 'Too many requests from this IP, please try again after 15 minutes',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+app.use(globalLimiter);
+
+// Mengizinkan Express menyadari HTTPS headers dari Nginx/Cloudflare
+app.set('trust proxy', 1);
+
+// Login Specific Rate Limiter
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 login requests per windowMs
+    message: 'Too many login attempts, please try again after 15 minutes',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'wagw-secret-session',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        httpOnly: true,  // Prevent JS access to cookie
+        sameSite: 'lax', // Basic CSRF protection
+        secure: process.env.NODE_ENV === 'production' // Aktifkan secure filter jika production
+    }
+}));
+
+// Auth Middleware
+const requireAuth = (req, res, next) => {
+    if (req.session.user) {
+        next();
+    } else {
+        res.redirect('/login');
+    }
+};
+
+app.get('/login', (req, res) => {
+    if (req.session.user) return res.redirect('/');
+    // Generate a simple CSRF token
+    if (!req.session.csrfToken) {
+        require('./routes')(router)
+
+        io.on('connection', (socket) => {
+            socket.on('StartConnection', async (device) => {
+                startCon(device, socket)
+                return;
+            })
+            socket.on('LogoutDevice', (device) => {
+                startCon(device, socket, true)
+                return
+            })
+        })
+
+        const PORT = process.env.PORT || 10000;
+
+        server.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+            init();
+        });

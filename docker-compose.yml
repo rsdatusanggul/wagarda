@@ -1,0 +1,32 @@
+services:
+  wagw:
+    build: .
+    container_name: wagw-app
+    ports:
+      - "10000:10000" # Untuk akses lokal langsung
+    volumes:
+      - ./sessions:/usr/src/app/sessions
+      - ./wagw.db:/usr/src/app/wagw.db
+      - ./.env:/usr/src/app/.env
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+  nginx:
+    image: nginx:alpine
+    container_name: wagw-nginx
+    ports:
+      - "8180:80" # Untuk akses lokal via Nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - wagw
+    restart: unless-stopped
+
+  cloudflare-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: wagw-tunnel
+    command: tunnel --no-autoupdate --url http://nginx:80
+    depends_on:
+      - nginx
+    restart: unless-stopped
