@@ -292,20 +292,22 @@
         async function deleteDevice(deviceId) {
             if (confirm(`Are you sure you want to delete and logout device: ${deviceId}?`)) {
                 try {
-                    const res = await fetch(`/wagateway/device/${deviceId}`, {
-                        method: 'DELETE',
+                    const res = await fetch('/wagateway/delete-device', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ device_id: deviceId })
                     });
 
                     const data = await res.json();
                     if (data.status) {
-                        alert(`Device ${deviceId} deleted successfully.`);
+                        alert(`Device ${deviceId} berhasil dihapus.`);
                         fetchDeviceList(); // Refresh
                     } else {
-                        alert(`Failed to delete device: ${data.message || 'Unknown error'}`);
+                        alert(`Gagal menghapus device: ${data.msg || 'Unknown error'}`);
                     }
                 } catch (err) {
                     console.error("Error deleting device:", err);
-                    alert("Error deleting device.");
+                    alert("Error deleting device: " + err.message);
                 }
             }
         }
