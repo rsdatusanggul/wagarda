@@ -34,16 +34,7 @@ services:
   cloudflare-tunnel:
     image: cloudflare/cloudflared:latest
     container_name: wagarda-tunnel
-    environment:
-      - CF_TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
-    command: >
-      sh -c '
-      if [ -z "$$CF_TUNNEL_TOKEN" ]; then
-        echo "ERROR: CF_TUNNEL_TOKEN is required for production tunnel";
-        exit 1;
-      fi;
-      cloudflared tunnel --no-autoupdate run --token "$$CF_TUNNEL_TOKEN"
-      '
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
     depends_on:
       - nginx
     restart: unless-stopped
