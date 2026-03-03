@@ -95,7 +95,7 @@
         </div>
 
         <div class="input-group">
-            <input type="password" id="api-key" placeholder="Enter API Key to view logs" />
+            <input type="password" id="api-key" placeholder="Optional: API Key (header x-api-key)" />
             <button id="btn-view-logs" class="refresh-btn">View Logs</button>
         </div>
         <p id="error-msg" class="error-msg"></p>
@@ -123,17 +123,15 @@
         async function fetchLogs() {
             const apiKey = document.getElementById('api-key').value.trim();
             const errorMsg = document.getElementById('error-msg');
-
-            if (!apiKey) {
-                errorMsg.textContent = 'Please enter API Key';
-                errorMsg.style.display = 'block';
-                return;
-            }
-
             errorMsg.style.display = 'none';
 
             try {
-                const response = await fetch(`/wagateway/logs?api_key=${apiKey}`);
+                const headers = {};
+                if (apiKey) {
+                    headers['x-api-key'] = apiKey;
+                }
+
+                const response = await fetch('/wagateway/logs', { headers });
                 const result = await response.json();
 
                 if (result.status) {
@@ -147,10 +145,10 @@
 
                     result.data.forEach(log => {
                         const row = document.createElement('tr');
-                        const statusClass = log.status === 'success' ? 'success' : 'failed';
+                        const statusClass = String(log.status || '').startsWith('success') ? 'success' : 'failed';
 
                         // Parse message if it's JSON
-                        let messageDisplay = log.message;
+                        let messageDisplay = String(log.message || '');
                         try {
                             const msgObj = JSON.parse(log.message);
                             if (msgObj.text) messageDisplay = msgObj.text;
@@ -160,14 +158,26 @@
                             // Not JSON, keep as is
                         }
 
-                        row.innerHTML = `
-                            <td>${log.id}</td>
-                            <td>${new Date(log.timestamp).toLocaleString()}</td>
-                            <td>${log.sender}</td>
-                            <td>${log.recipient}</td>
-                            <td>${messageDisplay}</td>
-                            <td class="${statusClass}">${log.status}</td>
-                        `;
+                        const tdId = document.createElement('td');
+                        tdId.textContent = String(log.id ?? '');
+
+                        const tdTimestamp = document.createElement('td');
+                        tdTimestamp.textContent = new Date(log.timestamp).toLocaleString();
+
+                        const tdSender = document.createElement('td');
+                        tdSender.textContent = String(log.sender ?? '');
+
+                        const tdRecipient = document.createElement('td');
+                        tdRecipient.textContent = String(log.recipient ?? '');
+
+                        const tdMessage = document.createElement('td');
+                        tdMessage.textContent = messageDisplay;
+
+                        const tdStatus = document.createElement('td');
+                        tdStatus.className = statusClass;
+                        tdStatus.textContent = String(log.status ?? '');
+
+                        row.append(tdId, tdTimestamp, tdSender, tdRecipient, tdMessage, tdStatus);
                         tbody.appendChild(row);
                     });
                 } else {

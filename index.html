@@ -1,408 +1,463 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WhatsApp Gateway Multi-Device</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
 
-        .container {
-            border: 1px solid #ccc;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-        }
+      .container {
+        border: 1px solid #ccc;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+      }
 
-        .input-group {
-            margin-bottom: 10px;
-        }
+      .input-group {
+        margin-bottom: 10px;
+      }
 
-        label {
-            display: block;
-            margin-bottom: 5px;
-        }
+      label {
+        display: block;
+        margin-bottom: 5px;
+      }
 
-        input {
-            padding: 8px;
-            width: 100%;
-            box-sizing: border-box;
-        }
+      input {
+        padding: 8px;
+        width: 100%;
+        box-sizing: border-box;
+      }
 
-        button {
-            padding: 10px 15px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
+      button {
+        padding: 10px 15px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
 
-        button:hover {
-            background-color: #218838;
-        }
+      button:hover {
+        background-color: #218838;
+      }
 
-        #qr-container {
-            margin-top: 20px;
-            text-align: center;
-        }
+      #qr-container {
+        margin-top: 20px;
+        text-align: center;
+      }
 
-        #status {
-            margin-top: 10px;
-            font-weight: bold;
-        }
+      #status {
+        margin-top: 10px;
+        font-weight: bold;
+      }
 
-        img {
-            max-width: 300px;
-            border: 1px solid #ddd;
-        }
+      img {
+        max-width: 300px;
+        border: 1px solid #ddd;
+      }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
 
-        th,
-        td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
 
-        .status-connected {
-            color: green;
-            font-weight: bold;
-        }
+      .status-connected {
+        color: green;
+        font-weight: bold;
+      }
 
-        .status-disconnected {
-            color: red;
-            font-weight: bold;
-        }
+      .status-disconnected {
+        color: red;
+        font-weight: bold;
+      }
 
-        .delete-btn {
-            background-color: #dc3545;
-            padding: 5px 10px;
-            font-size: 12px;
-        }
+      .delete-btn {
+        background-color: #dc3545;
+        padding: 5px 10px;
+        font-size: 12px;
+      }
 
-        .delete-btn:hover {
-            background-color: #c82333;
-        }
+      .delete-btn:hover {
+        background-color: #c82333;
+      }
 
-        .navbar {
-            background-color: #343a40;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+      .navbar {
+        background-color: #343a40;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
 
-        .navbar a {
-            color: white;
-            text-decoration: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-weight: bold;
-        }
+      .navbar a {
+        color: white;
+        text-decoration: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        font-weight: bold;
+      }
 
-        .navbar a:hover {
-            background-color: #495057;
-        }
+      .navbar a:hover {
+        background-color: #495057;
+      }
 
-        .navbar-brand {
-            font-size: 1.2em;
-            color: white;
-            font-weight: bold;
-        }
+      .navbar-brand {
+        font-size: 1.2em;
+        color: white;
+        font-weight: bold;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <div class="navbar">
-        <span class="navbar-brand">WAGARDA Dashboard</span>
-        <div>
-            <a href="/">Home</a>
-            <a href="/logs-view">Logs</a>
-            <a href="/logout" style="background-color: #dc3545; margin-left: 10px;">Logout</a>
-        </div>
+      <span class="navbar-brand">WAGARDA Dashboard</span>
+      <div>
+        <a href="/">Home</a>
+        <a href="/logs-view">Logs</a>
+        <a href="/api-docs" target="_blank" style="background-color: #17a2b8"
+          >API Docs (Swagger)</a
+        >
+        <a href="/logout" style="background-color: #dc3545; margin-left: 10px"
+          >Logout</a
+        >
+      </div>
     </div>
 
     <div class="container">
-        <h2>Add New Device</h2>
-        <div class="input-group">
-            <label for="device-id">Device ID (e.g., my-phone, support-1):</label>
-            <input type="text" id="device-id" placeholder="Enter unique device ID">
-        </div>
-        <button id="btn-generate">Generate QR Code</button>
+      <h2>Add New Device</h2>
+      <div class="input-group">
+        <label for="device-id">Device ID (e.g., my-phone, support-1):</label>
+        <input
+          type="text"
+          id="device-id"
+          placeholder="Enter unique device ID"
+        />
+      </div>
+      <button id="btn-generate">Generate QR Code</button>
 
-        <div id="status"></div>
-        <div id="qr-container"></div>
+      <div id="status"></div>
+      <div id="qr-container"></div>
     </div>
 
     <div class="container">
-        <h2>API Key Management</h2>
-        <div style="margin-bottom: 10px;">
-            <input type="text" id="new-key-desc" placeholder="Description (e.g. Sales App)"
-                style="width: 70%; display: inline-block;">
-            <button id="btn-create-key" style="margin-top: 5px; width: 28%; display: inline-block;">Generate
-                Key</button>
-        </div>
-        <table id="api-keys-table">
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th>API Key (Secret)</th>
-                    <th>Created At</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- API keys dynamically generated -->
-            </tbody>
-        </table>
+      <h2>API Key Management</h2>
+      <div style="margin-bottom: 10px">
+        <input
+          type="text"
+          id="new-key-desc"
+          placeholder="Description (e.g. Sales App)"
+          style="width: 70%; display: inline-block"
+        />
+        <button
+          id="btn-create-key"
+          style="margin-top: 5px; width: 28%; display: inline-block"
+        >
+          Generate Key
+        </button>
+      </div>
+      <table id="api-keys-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>API Key (Secret)</th>
+            <th>Created At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- API keys dynamically generated -->
+        </tbody>
+      </table>
     </div>
 
     <div class="container">
-        <h2>Registered Devices</h2>
-        <div class="input-group">
-            <button id="btn-refresh-devices" style="margin-top:5px; background-color: #007bff;">Refresh List</button>
-        </div>
-        <table id="device-table">
-            <thead>
-                <tr>
-                    <th>Device ID</th>
-                    <th>Status</th>
-                    <th>Phone Number</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Device list will be populated here -->
-            </tbody>
-        </table>
+      <h2>Registered Devices</h2>
+      <div class="input-group">
+        <button
+          id="btn-refresh-devices"
+          style="margin-top: 5px; background-color: #007bff"
+        >
+          Refresh List
+        </button>
+      </div>
+      <table id="device-table">
+        <thead>
+          <tr>
+            <th>Device ID</th>
+            <th>Status</th>
+            <th>Phone Number</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Device list will be populated here -->
+        </tbody>
+      </table>
     </div>
 
     <script>
-        const socket = io();
-        const btnGenerate = document.getElementById('btn-generate');
-        const deviceIdInput = document.getElementById('device-id');
-        const statusDiv = document.getElementById('status');
-        const qrContainer = document.getElementById('qr-container');
-        const btnRefreshDevices = document.getElementById('btn-refresh-devices');
-        const deviceTableBody = document.querySelector('#device-table tbody');
+      const socket = io({ withCredentials: true });
+      const btnGenerate = document.getElementById("btn-generate");
+      const deviceIdInput = document.getElementById("device-id");
+      const statusDiv = document.getElementById("status");
+      const qrContainer = document.getElementById("qr-container");
+      const btnRefreshDevices = document.getElementById("btn-refresh-devices");
+      const deviceTableBody = document.querySelector("#device-table tbody");
+      const deviceIdPattern = /^[A-Za-z0-9_-]{1,64}$/;
 
-        btnGenerate.addEventListener('click', () => {
-            const deviceId = deviceIdInput.value.trim();
-            if (!deviceId) {
-                alert('Please enter a Device ID');
-                return;
-            }
+      socket.on("connect_error", (err) => {
+        if (err && err.message === "Unauthorized") {
+          window.location.href = "/login";
+        }
+      });
 
-            // Clear previous UI
-            qrContainer.innerHTML = '';
-            statusDiv.textContent = 'Requesting connection...';
-
-            // Send request to server
-            socket.emit('StartConnection', deviceId);
-        });
-
-        // Listen for QR code from server
-        socket.on('qr', (data) => {
-            if (data.device === deviceIdInput.value.trim()) {
-                statusDiv.textContent = 'Please scan this QR code with WhatsApp:';
-                qrContainer.innerHTML = `<img src="${data.qr}" alt="QR Code">`;
-            }
-        });
-
-        socket.on('connection-status', (data) => {
-            console.log('Status received:', data);
-            if (data.device === deviceIdInput.value.trim()) {
-                if (data.status === 'open') {
-                    statusDiv.innerHTML = '<span class="status-connected">Connected successfully!</span>';
-                    qrContainer.innerHTML = '';
-                } else if (data.status === 'close') {
-                    statusDiv.innerHTML = '<span class="status-disconnected">Connection closed or failed.</span>';
-                }
-            }
-        });
-
-        // ================= DEVICE LIST MANAGEMENT =================
-        async function fetchDeviceList() {
-            try {
-                const res = await fetch('/wagateway/devices');
-                if (res.status === 401 || res.status === 403) {
-                    alert("Unauthorized. Make sure you are logged in.");
-                    return;
-                }
-                const json = await res.json();
-                const devices = json.data || [];
-
-                deviceTableBody.innerHTML = ''; // Clear table
-
-                if (devices.length === 0) {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = '<td colspan="4" style="text-align: center;">No devices registered</td>';
-                    deviceTableBody.appendChild(tr);
-                    return;
-                }
-
-                devices.forEach(device => {
-                    const tr = document.createElement('tr');
-
-                    const tdId = document.createElement('td');
-                    tdId.textContent = device.device_id;
-
-                    const tdStatus = document.createElement('td');
-                    const statusClass = device.status === 'connected' ? 'status-connected' : 'status-disconnected';
-                    tdStatus.innerHTML = `<span class="${statusClass}">${device.status}</span>`;
-
-                    const tdPhone = document.createElement('td');
-                    tdPhone.textContent = device.phone || '-';
-
-                    const tdAction = document.createElement('td');
-                    const btnDelete = document.createElement('button');
-                    btnDelete.textContent = 'Delete & Logout';
-                    btnDelete.className = 'delete-btn';
-                    btnDelete.onclick = () => deleteDevice(device.device_id);
-
-                    tdAction.appendChild(btnDelete);
-
-                    tr.appendChild(tdId);
-                    tr.appendChild(tdStatus);
-                    tr.appendChild(tdPhone);
-                    tr.appendChild(tdAction);
-
-                    deviceTableBody.appendChild(tr);
-                });
-
-            } catch (err) {
-                console.error("Error fetching devices:", err);
-            }
+      btnGenerate.addEventListener("click", () => {
+        const deviceId = deviceIdInput.value.trim();
+        if (!deviceId) {
+          alert("Please enter a Device ID");
+          return;
+        }
+        if (!deviceIdPattern.test(deviceId)) {
+          alert(
+            "Device ID hanya boleh huruf, angka, underscore (_), dan dash (-), maksimal 64 karakter.",
+          );
+          return;
         }
 
-        async function deleteDevice(deviceId) {
-            if (confirm(`Are you sure you want to delete and logout device: ${deviceId}?`)) {
-                try {
-                    const res = await fetch('/wagateway/delete-device', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ device_id: deviceId })
-                    });
+        // Clear previous UI
+        qrContainer.innerHTML = "";
+        statusDiv.textContent = "Requesting connection...";
 
-                    const data = await res.json();
-                    if (data.status) {
-                        alert(`Device ${deviceId} berhasil dihapus.`);
-                        fetchDeviceList(); // Refresh
-                    } else {
-                        alert(`Gagal menghapus device: ${data.msg || 'Unknown error'}`);
-                    }
-                } catch (err) {
-                    console.error("Error deleting device:", err);
-                    alert("Error deleting device: " + err.message);
-                }
-            }
+        // Send request to server
+        socket.emit("StartConnection", deviceId);
+      });
+
+      // Listen for QR code from server
+      socket.on("qr", (data) => {
+        if (data.device === deviceIdInput.value.trim()) {
+          statusDiv.textContent = "Please scan this QR code with WhatsApp:";
+          qrContainer.innerHTML = `<img src="${data.qr}" alt="QR Code">`;
         }
+      });
 
-        btnRefreshDevices.addEventListener('click', fetchDeviceList);
-
-        // Auto load devices on start
-        fetchDeviceList();
-
-        // ================= API KEY MANAGEMENT =================
-        const btnCreateKey = document.getElementById('btn-create-key');
-        const descInput = document.getElementById('new-key-desc');
-        const apiKeysTbody = document.querySelector('#api-keys-table tbody');
-
-        async function fetchApiKeys() {
-            try {
-                const res = await fetch('/api/keys');
-                if (!res.ok) throw new Error('Failed to fetch API keys');
-                const keys = await res.json();
-
-                apiKeysTbody.innerHTML = '';
-                if (keys.length === 0) {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = '<td colspan="4" style="text-align: center;">No API Keys generated yet</td>';
-                    apiKeysTbody.appendChild(tr);
-                    return;
-                }
-
-                keys.forEach(k => {
-                    const tr = document.createElement('tr');
-
-                    const tdDesc = document.createElement('td');
-                    tdDesc.textContent = k.description;
-
-                    const tdKey = document.createElement('td');
-                    tdKey.innerHTML = `<code style="user-select: all; background: #eee; padding: 2px 5px;">${k.key}</code>`;
-
-                    const tdTime = document.createElement('td');
-                    tdTime.textContent = new Date(k.created_at).toLocaleString();
-
-                    const tdAction = document.createElement('td');
-                    const btnDel = document.createElement('button');
-                    btnDel.textContent = 'Revoke';
-                    btnDel.className = 'delete-btn';
-                    btnDel.onclick = () => deleteApiKey(k.id);
-                    tdAction.appendChild(btnDel);
-
-                    tr.append(tdDesc, tdKey, tdTime, tdAction);
-                    apiKeysTbody.appendChild(tr);
-                });
-            } catch (err) {
-                console.error(err);
-            }
+      socket.on("connection-status", (data) => {
+        console.log("Status received:", data);
+        if (data.device === deviceIdInput.value.trim()) {
+          if (data.status === "open") {
+            statusDiv.innerHTML =
+              '<span class="status-connected">Connected successfully!</span>';
+            qrContainer.innerHTML = "";
+          } else if (data.status === "close") {
+            statusDiv.innerHTML =
+              '<span class="status-disconnected">Connection closed or failed.</span>';
+          }
         }
+      });
 
-        async function createApiKey() {
-            const desc = descInput.value.trim();
-            if (!desc) return alert('Please enter a description');
+      // ================= DEVICE LIST MANAGEMENT =================
+      async function fetchDeviceList() {
+        try {
+          const res = await fetch("/wagateway/devices");
+          if (res.status === 401 || res.status === 403) {
+            alert("Unauthorized. Make sure you are logged in.");
+            return;
+          }
+          const json = await res.json();
+          const devices = json.data || [];
 
-            try {
-                const res = await fetch('/api/keys', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ description: desc })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    descInput.value = '';
-                    fetchApiKeys();
-                    alert('New API Key Generated: ' + data.key + '\n\nPlease copy it now, it will be visible in the table below.');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Error creating API key');
-            }
+          deviceTableBody.innerHTML = ""; // Clear table
+
+          if (devices.length === 0) {
+            const tr = document.createElement("tr");
+            tr.innerHTML =
+              '<td colspan="4" style="text-align: center;">No devices registered</td>';
+            deviceTableBody.appendChild(tr);
+            return;
+          }
+
+          devices.forEach((device) => {
+            const tr = document.createElement("tr");
+
+            const tdId = document.createElement("td");
+            tdId.textContent = device.device_id;
+
+            const tdStatus = document.createElement("td");
+            const statusClass =
+              device.status === "connected"
+                ? "status-connected"
+                : "status-disconnected";
+            tdStatus.innerHTML = `<span class="${statusClass}">${device.status}</span>`;
+
+            const tdPhone = document.createElement("td");
+            tdPhone.textContent = device.phone || "-";
+
+            const tdAction = document.createElement("td");
+            const btnDelete = document.createElement("button");
+            btnDelete.textContent = "Delete & Logout";
+            btnDelete.className = "delete-btn";
+            btnDelete.onclick = () => deleteDevice(device.device_id);
+
+            tdAction.appendChild(btnDelete);
+
+            tr.appendChild(tdId);
+            tr.appendChild(tdStatus);
+            tr.appendChild(tdPhone);
+            tr.appendChild(tdAction);
+
+            deviceTableBody.appendChild(tr);
+          });
+        } catch (err) {
+          console.error("Error fetching devices:", err);
         }
+      }
 
-        async function deleteApiKey(id) {
-            if (!confirm('Are you sure you want to REVOKE this API Key? Applications using it will break immediately.')) return;
-            try {
-                const res = await fetch(`/api/keys/${id}`, { method: 'DELETE' });
-                const data = await res.json();
-                if (data.success) {
-                    fetchApiKeys();
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Error deleting API key');
-            }
+      async function deleteDevice(deviceId) {
+        if (!deviceIdPattern.test(deviceId)) {
+          alert("Invalid device id.");
+          return;
         }
+        if (
+          confirm(
+            `Are you sure you want to delete and logout device: ${deviceId}?`,
+          )
+        ) {
+          try {
+            const res = await fetch("/wagateway/delete-device", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ device_id: deviceId }),
+            });
 
-        if (btnCreateKey) btnCreateKey.addEventListener('click', createApiKey);
-        if (apiKeysTbody) fetchApiKeys();
+            const data = await res.json();
+            if (data.status) {
+              alert(`Device ${deviceId} berhasil dihapus.`);
+              fetchDeviceList(); // Refresh
+            } else {
+              alert(`Gagal menghapus device: ${data.msg || "Unknown error"}`);
+            }
+          } catch (err) {
+            console.error("Error deleting device:", err);
+            alert("Error deleting device: " + err.message);
+          }
+        }
+      }
 
+      btnRefreshDevices.addEventListener("click", fetchDeviceList);
+
+      // Auto load devices on start
+      fetchDeviceList();
+
+      // ================= API KEY MANAGEMENT =================
+      const btnCreateKey = document.getElementById("btn-create-key");
+      const descInput = document.getElementById("new-key-desc");
+      const apiKeysTbody = document.querySelector("#api-keys-table tbody");
+
+      async function fetchApiKeys() {
+        try {
+          const res = await fetch("/api/keys");
+          if (!res.ok) throw new Error("Failed to fetch API keys");
+          const keys = await res.json();
+
+          apiKeysTbody.innerHTML = "";
+          if (keys.length === 0) {
+            const tr = document.createElement("tr");
+            tr.innerHTML =
+              '<td colspan="4" style="text-align: center;">No API Keys generated yet</td>';
+            apiKeysTbody.appendChild(tr);
+            return;
+          }
+
+          keys.forEach((k) => {
+            const tr = document.createElement("tr");
+
+            const tdDesc = document.createElement("td");
+            tdDesc.textContent = k.description;
+
+            const tdKey = document.createElement("td");
+            tdKey.innerHTML = `<code style="user-select: all; background: #eee; padding: 2px 5px;">${k.key}</code>`;
+
+            const tdTime = document.createElement("td");
+            tdTime.textContent = new Date(k.created_at).toLocaleString();
+
+            const tdAction = document.createElement("td");
+            const btnDel = document.createElement("button");
+            btnDel.textContent = "Revoke";
+            btnDel.className = "delete-btn";
+            btnDel.onclick = () => deleteApiKey(k.id);
+            tdAction.appendChild(btnDel);
+
+            tr.append(tdDesc, tdKey, tdTime, tdAction);
+            apiKeysTbody.appendChild(tr);
+          });
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      async function createApiKey() {
+        const desc = descInput.value.trim();
+        if (!desc) return alert("Please enter a description");
+
+        try {
+          const res = await fetch("/api/keys", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description: desc }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            descInput.value = "";
+            fetchApiKeys();
+            alert(
+              "New API Key Generated: " +
+                data.key +
+                "\n\nPlease copy it now, it will be visible in the table below.",
+            );
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Error creating API key");
+        }
+      }
+
+      async function deleteApiKey(id) {
+        if (
+          !confirm(
+            "Are you sure you want to REVOKE this API Key? Applications using it will break immediately.",
+          )
+        )
+          return;
+        try {
+          const res = await fetch(`/api/keys/${id}`, { method: "DELETE" });
+          const data = await res.json();
+          if (data.success) {
+            fetchApiKeys();
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Error deleting API key");
+        }
+      }
+
+      if (btnCreateKey) btnCreateKey.addEventListener("click", createApiKey);
+      if (apiKeysTbody) fetchApiKeys();
     </script>
-</body>
-
+  </body>
 </html>

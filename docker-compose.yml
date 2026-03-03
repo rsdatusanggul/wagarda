@@ -2,31 +2,48 @@ services:
   wagarda:
     build: .
     container_name: wagarda-app
-    ports:
-      - "10000:10000" # Untuk akses lokal langsung
+    expose:
+      - "10000"
     volumes:
       - ./sessions:/usr/src/app/sessions
       - ./wagarda.db:/usr/src/app/wagarda.db
-      - ./.env:/usr/src/app/.env
-    restart: "no"
+    restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - PORT=${PORT}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER}
+      - DEFAULT_ADMIN_PASS=${DEFAULT_ADMIN_PASS}
+      - DEFAULT_API_KEY=${DEFAULT_API_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - ENABLE_API_DOCS=${ENABLE_API_DOCS:-false}
+      - BODY_LIMIT=${BODY_LIMIT:-1mb}
+      - PARAMETER_LIMIT=${PARAMETER_LIMIT:-1000}
 
   nginx:
     image: nginx:alpine
     container_name: wagarda-nginx
     ports:
-      - "8180:80" # Untuk akses lokal via Nginx
+      - "127.0.0.1:8180:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - wagarda
-    restart: "no"
+    restart: unless-stopped
 
   cloudflare-tunnel:
     image: cloudflare/cloudflared:latest
     container_name: wagarda-tunnel
-    command: tunnel --no-autoupdate --url http://nginx:80
+    environment:
+      - CF_TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+    command: >
+      sh -c '
+      if [ -z "$$CF_TUNNEL_TOKEN" ]; then
+        echo "ERROR: CF_TUNNEL_TOKEN is required for production tunnel";
+        exit 1;
+      fi;
+      cloudflared tunnel --no-autoupdate run --token "$$CF_TUNNEL_TOKEN"
+      '
     depends_on:
       - nginx
-    restart: "no"
+    restart: unless-stopped

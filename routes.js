@@ -1,9 +1,10 @@
 
 const { sendMessage, sendBulkMessage } = require('./message')
 const { getLogs, validateApiKey } = require('./database')
-const { sessions, startCon } = require('./connection')
+const { sessions, isValidDeviceId, getSessionDir } = require('./connection')
 const { body } = require('express-validator')
 const fs = require('fs');
+const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 const authenticate = async (req, res, next) => {
     // Allow access if logged in via Web UI (Admin Session override)
@@ -11,7 +12,10 @@ const authenticate = async (req, res, next) => {
         return next();
     }
 
-    const apiKey = req.headers['x-api-key'] || req.query.api_key;
+    let apiKey = req.headers['x-api-key'];
+    if (!apiKey && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        apiKey = req.headers.authorization.slice(7).trim();
+    }
 
     if (!apiKey) {
         return res.status(401).json({ status: false, msg: 'API Key is missing or unauthorized' });
@@ -68,7 +72,7 @@ module.exports = function (router) {
      *         description: Failed to send message
      */
     router.post('/wagateway/kirimpesan', [
-        body('sender', 'Wrong Parameters!').notEmpty().trim().escape(),
+        body('sender', 'Wrong Parameters!').matches(DEVICE_ID_PATTERN).trim().escape(),
         body('number', 'Wrong Parameters!').notEmpty().trim().escape(),
         body('message', 'Wrong Parameters!').notEmpty().trim().escape()
     ], sendMessage)
@@ -108,7 +112,7 @@ module.exports = function (router) {
      *         description: Image sent successfully
      */
     router.post('/wagateway/kirimgambar', [
-        body('sender', 'Wrong Parameters!').notEmpty(),
+        body('sender', 'Wrong Parameters!').matches(DEVICE_ID_PATTERN),
         body('number', 'Wrong Parameters!').notEmpty(),
         body('message', 'Wrong Parameters!').notEmpty(),
         body('url', 'Wrong Parameters!').notEmpty(),
@@ -145,7 +149,7 @@ module.exports = function (router) {
      *         description: File sent successfully
      */
     router.post('/wagateway/kirimfile', [
-        body('sender', 'Wrong Parameters!').notEmpty(),
+        body('sender', 'Wrong Parameters!').matches(DEVICE_ID_PATTERN),
         body('number', 'Wrong Parameters!').notEmpty(),
         body('url', 'Wrong Parameters!').notEmpty(),
     ], sendMessage)
@@ -230,9 +234,14 @@ module.exports = function (router) {
         const connectedDevices = [];
 
         // Baileys menyimpan sesi di folder ./sessions/DEVICEID
-        const entries = fs.readdirSync('./sessions', { withFileTypes: true });
+        const sessionsRoot = './sessions';
+        if (!fs.existsSync(sessionsRoot)) {
+            return res.json({ status: true, data: [] });
+        }
+
+        const entries = fs.readdirSync(sessionsRoot, { withFileTypes: true });
         const allDevices = entries
-            .filter(entry => entry.isDirectory())
+            .filter(entry => entry.isDirectory() && isValidDeviceId(entry.name))
             .map(entry => entry.name);
 
         allDevices.forEach(device => {
@@ -277,7 +286,7 @@ module.exports = function (router) {
      *         description: Device deleted successfully
      */
     router.post('/wagateway/delete-device', [
-        body('device_id', 'Wrong Parameters!').notEmpty(),
+        body('device_id', 'Wrong Parameters!').matches(DEVICE_ID_PATTERN),
     ], async (req, res) => {
         const { device_id } = req.body;
         await cleanupDevice(device_id, sessions, fs, res);
@@ -286,6 +295,9 @@ module.exports = function (router) {
     // REST-style DELETE endpoint used by the dashboard UI
     router.delete('/wagateway/device/:device_id', async (req, res) => {
         const { device_id } = req.params;
+        if (!isValidDeviceId(device_id)) {
+            return res.status(400).json({ status: false, msg: 'Invalid device id' });
+        }
         await cleanupDevice(device_id, sessions, fs, res);
     });
 
@@ -293,6 +305,10 @@ module.exports = function (router) {
 
 // Shared cleanup logic for deleting/logging out a device
 async function cleanupDevice(device_id, sessions, fs, res) {
+    if (!isValidDeviceId(device_id)) {
+        return res.status(400).json({ status: false, msg: 'Invalid device id' });
+    }
+
     const conn = sessions.get(device_id);
 
     if (conn) {
@@ -309,7 +325,7 @@ async function cleanupDevice(device_id, sessions, fs, res) {
     }
 
     // Always attempt to remove the session folder regardless of socket state
-    const sessionDir = `./sessions/${device_id}`;
+    const sessionDir = getSessionDir(device_id);
     if (fs.existsSync(sessionDir)) {
         try {
             fs.rmSync(sessionDir, { recursive: true, force: true });
@@ -323,4 +339,3 @@ async function cleanupDevice(device_id, sessions, fs, res) {
         return res.status(404).json({ status: false, msg: `Device ${device_id} not found` });
     }
 }
-
