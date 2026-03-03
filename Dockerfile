@@ -2,6 +2,7 @@ FROM node:24-slim
 
 # Install dependencies required for canvas/qrcode
 RUN apt-get update && apt-get install -y \
+    ca-certificates \
     git \
     build-essential \
     libcairo2-dev \
