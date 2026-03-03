@@ -1,26 +1,60 @@
 const express = require('express');
-const app = express();
 const http = require('http');
-const server = http.createServer(app);
-const { Server } = require("socket.io");
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
-});
-const { init, startCon, } = require('./connection');
-const { authenticateUser, getApiKeys, createApiKey, deleteApiKey } = require('./database');
+const fs = require('fs');
+const crypto = require('crypto');
+const { Server } = require('socket.io');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const qrcode = require('qrcode');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const cors = require('cors');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
+const { init, startCon, isValidDeviceId } = require('./connection');
+const { authenticateUser, getApiKeys, createApiKey, deleteApiKey } = require('./database');
+
 require('dotenv').config();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 1000000 }))
+const app = express();
+const server = http.createServer(app);
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
+function isAllowedOrigin(origin, req, allowNoOrigin = false) {
+    if (!origin) return allowNoOrigin;
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return true;
+
+    try {
+        const host = req.headers['x-forwarded-host'] || req.headers.host;
+        return Boolean(host && new URL(origin).host === host);
+    } catch (e) {
+        return false;
+    }
+}
+
+const io = new Server(server, {
+    cors: {
+        methods: ['GET', 'POST'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: true
+    },
+    allowRequest: (req, callback) => {
+        if (isAllowedOrigin(req.headers.origin, req, true)) {
+            return callback(null, true);
+        }
+        return callback('Not allowed by CORS', false);
+    }
+});
+
+const parsedParameterLimit = Number.parseInt(process.env.PARAMETER_LIMIT || '1000', 10);
+const parameterLimit = Number.isFinite(parsedParameterLimit) && parsedParameterLimit > 0 ? parsedParameterLimit : 1000;
+const bodyLimit = process.env.BODY_LIMIT || '1mb';
+
+app.use(express.json({ limit: bodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: bodyLimit, parameterLimit }));
 
 // Apply Helmet for basic security headers
 app.use(helmet({
@@ -29,11 +63,14 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:"],
-            connectSrc: ["'self'", "ws:", "wss:"],
-        },
-    },
+            imgSrc: ["'self'", 'data:'],
+            connectSrc: ["'self'", 'ws:', 'wss:']
+        }
+    }
 }));
+
+// Trust proxy for rate limiting and secure cookies behind Nginx/Cloudflare
+app.set('trust proxy', 1);
 
 // Global Rate Limiter
 const globalLimiter = rateLimit({
@@ -41,52 +78,33 @@ const globalLimiter = rateLimit({
     max: 200,
     message: 'Too many requests from this IP, please try again after 15 minutes',
     standardHeaders: true,
-    legacyHeaders: false,
+    legacyHeaders: false
 });
 app.use(globalLimiter);
 
 // Strict CORS Policy for API Routes
 const corsOptionsDelegate = (req, callback) => {
-    let corsOptions = {
+    const corsOptions = {
         methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
-        credentials: true
+        credentials: true,
+        origin: false
     };
 
     const origin = req.header('Origin');
     if (!origin) {
-        corsOptions.origin = false;
         return callback(null, corsOptions);
     }
 
-    const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
-    let isAllowed = false;
-
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
-        isAllowed = true;
-    } else {
-        try {
-            // Allow same origin requests when running behind a tunnel/proxy
-            const host = req.get('x-forwarded-host') || req.get('host');
-            if (host && new URL(origin).host === host) {
-                isAllowed = true;
-            }
-        } catch (e) { }
-    }
-
-    if (isAllowed) {
+    if (isAllowedOrigin(origin, req, false)) {
         corsOptions.origin = true;
-        callback(null, corsOptions);
-    } else {
-        // Return an error which will be caught by the global error handler
-        callback(new Error('Not allowed by CORS'));
+        return callback(null, corsOptions);
     }
+
+    return callback(new Error('Not allowed by CORS'));
 };
 
 app.use('/wagateway', cors(corsOptionsDelegate));
-
-// Trust proxy for rate limiting behind Nginx/Cloudflare
-app.set('trust proxy', 1);
 
 // Login Specific Rate Limiter
 const loginLimiter = rateLimit({
@@ -95,48 +113,63 @@ const loginLimiter = rateLimit({
     message: 'Too many login attempts, please try again later.'
 });
 
-app.use(session({
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction && !process.env.SESSION_SECRET) {
+    throw new Error('SESSION_SECRET is required when NODE_ENV=production');
+}
+
+const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.SESSION_SECRET) {
+    console.warn('[SECURITY] SESSION_SECRET is not set. Generated ephemeral secret for this process.');
+}
+
+const sessionMiddleware = session({
     store: new SQLiteStore({
         db: 'wagarda.db',
         dir: './',
         table: 'sessions'
     }),
-    secret: process.env.SESSION_SECRET || 'wagarda-secret-session',
+    secret: sessionSecret,
+    name: 'wagarda.sid',
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: {
-        maxAge: 7 * 24 * 60 * 60 * 1000, // Extend to 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000,
         httpOnly: true,
         sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
+        secure: 'auto'
     }
-}));
+});
 
-app.use(express.static('public'))
-
-const router = express.Router()
+app.use(sessionMiddleware);
+app.use(express.static('public'));
 
 // Middleware to check if user is logged in
 const requireAuth = (req, res, next) => {
-    if (req.session.user) {
-        next();
-    } else {
-        res.redirect('/login');
+    if (req.session && req.session.user) {
+        return next();
     }
+    return res.redirect('/login');
 };
+
+const enableApiDocs = process.env.ENABLE_API_DOCS === 'true' || !isProduction;
+if (enableApiDocs) {
+    app.use('/api-docs', requireAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
+
+const router = express.Router();
 
 app.get('/login', (req, res) => {
     if (req.session.user) return res.redirect('/');
-    // Generate a simple CSRF token
+
     if (!req.session.csrfToken) {
-        req.session.csrfToken = require('crypto').randomBytes(32).toString('hex');
+        req.session.csrfToken = crypto.randomBytes(32).toString('hex');
     }
 
-    // Inject CSRF token into the login form
-    const fs = require('fs');
-    const loginHtml = fs.readFileSync(__dirname + '/login.html', 'utf8');
+    const loginHtml = fs.readFileSync(`${__dirname}/login.html`, 'utf8');
     const htmlWithCsrf = loginHtml.replace('</form>', `<input type="hidden" name="csrfToken" value="${req.session.csrfToken}"></form>`);
-    res.send(htmlWithCsrf);
+    return res.send(htmlWithCsrf);
 });
 
 app.post('/login', loginLimiter, async (req, res) => {
@@ -150,18 +183,16 @@ app.post('/login', loginLimiter, async (req, res) => {
         const user = await authenticateUser(username, password, req.ip);
         if (user) {
             req.session.user = user;
-            req.session.csrfToken = require('crypto').randomBytes(32).toString('hex');
-            res.redirect('/');
-        } else {
-            res.redirect('/login?error=1');
+            req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+            return res.redirect('/');
         }
+        return res.redirect('/login?error=1');
     } catch (error) {
         console.error(error);
         if (error.message && error.message.includes('Account locked')) {
-            res.redirect('/login?error=locked');
-        } else {
-            res.redirect('/login?error=1');
+            return res.redirect('/login?error=locked');
         }
+        return res.redirect('/login?error=1');
     }
 });
 
@@ -169,60 +200,85 @@ app.post('/login', loginLimiter, async (req, res) => {
 app.get('/api/keys', requireAuth, async (req, res) => {
     try {
         const keys = await getApiKeys();
-        res.json(keys);
+        return res.json(keys);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 });
 
 app.post('/api/keys', requireAuth, async (req, res) => {
     try {
-        const crypto = require('crypto');
-        const newKey = 'wagarda-' + crypto.randomBytes(16).toString('hex');
-        const desc = req.body.description || 'Generated Key via UI';
+        const newKey = `wagarda-${crypto.randomBytes(16).toString('hex')}`;
+        const descInput = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+        const desc = descInput.slice(0, 120) || 'Generated Key via UI';
         createApiKey(newKey, desc);
-        res.json({ success: true, key: newKey });
+        return res.json({ success: true, key: newKey });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 });
 
 app.delete('/api/keys/:id', requireAuth, async (req, res) => {
     try {
         const success = await deleteApiKey(req.params.id);
-        res.json({ success });
+        return res.json({ success });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 });
 
 app.get('/logout', (req, res) => {
     req.session.destroy();
-    res.redirect('/login');
+    return res.redirect('/login');
 });
 
 app.get('/', requireAuth, (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+    res.sendFile(`${__dirname}/index.html`);
 });
 
 app.get('/logs-view', requireAuth, (req, res) => {
-    res.sendFile(__dirname + '/logs.html');
+    res.sendFile(`${__dirname}/logs.html`);
 });
 
 app.use(router);
+require('./routes')(router);
 
-require('./routes')(router)
+io.engine.use(sessionMiddleware);
+
+io.use((socket, next) => {
+    if (socket.request.session && socket.request.session.user) {
+        return next();
+    }
+    return next(new Error('Unauthorized'));
+});
 
 io.on('connection', (socket) => {
     socket.on('StartConnection', async (device) => {
-        startCon(device, socket)
-        return;
-    })
-    socket.on('LogoutDevice', (device) => {
-        startCon(device, socket, true)
-        return
-    })
-})
+        if (!isValidDeviceId(device)) {
+            socket.emit('connection-status', { device: null, status: 'invalid-device-id' });
+            return;
+        }
+        try {
+            await startCon(device, socket);
+        } catch (error) {
+            console.error('StartConnection error:', error);
+            socket.emit('connection-status', { device, status: 'error' });
+        }
+    });
+
+    socket.on('LogoutDevice', async (device) => {
+        if (!isValidDeviceId(device)) {
+            socket.emit('connection-status', { device: null, status: 'invalid-device-id' });
+            return;
+        }
+        try {
+            await startCon(device, socket, true);
+        } catch (error) {
+            console.error('LogoutDevice error:', error);
+            socket.emit('connection-status', { device, status: 'error' });
+        }
+    });
+});
 
 // Global Error Handler to ensure API routes always return JSON instead of HTML
 app.use((err, req, res, next) => {
@@ -232,8 +288,9 @@ app.use((err, req, res, next) => {
 
     console.error('Unhandled Error:', err);
     if (!res.headersSent) {
-        res.status(500).json({ status: false, msg: 'Internal Server Error' });
+        return res.status(500).json({ status: false, msg: 'Internal Server Error' });
     }
+    return next(err);
 });
 
 const PORT = process.env.PORT || 10000;
