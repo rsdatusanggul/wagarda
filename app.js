@@ -135,7 +135,7 @@ const sessionMiddleware = session({
     saveUninitialized: false,
     proxy: true,
     cookie: {
-        maxAge: 7 * 24 * 60 * 60 * 1000,
+        maxAge: process.env.SESSION_MAX_AGE_MS ? parseInt(process.env.SESSION_MAX_AGE_MS, 10) : 15 * 60 * 1000, // Default 15 menit timeout
         httpOnly: true,
         sameSite: 'lax',
         secure: 'auto'
