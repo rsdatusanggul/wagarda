@@ -1,6 +1,6 @@
 services:
   wagarda:
-    build: .
+    image: ghcr.io/rsdatusanggul/wagarda:main
     container_name: wagarda-app
     expose:
       - "10000"
